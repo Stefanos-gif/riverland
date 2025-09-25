@@ -1,40 +1,18 @@
 
 <script lang="ts">
-	
+	import { onMount, onDestroy } from 'svelte';
+
 	const mediaFiles = [
-		"2.jpg",
-		"2.jpg",
-		"3.JPG",
-		"4.JPG",
-		"IMG_0376.jpg",
-		"IMG_0378.jpg",
-		"IMG_0379.jpg",
-		"IMG_0380.jpg",
-		"IMG_0384.jpg",
-		"IMG_0385.jpg",
-		"IMG_0387.jpg",
-		"IMG_0388.jpg",
-		"IMG_0391.jpg",
-		"IMG_0392.jpg",
-		"IMG_0394.jpg",
-		"IMG_0395.jpg",
-		"IMG_0396.jpg",
-		"IMG_0397.jpg",
-		"IMG_0398.jpg",
-		"IMG_0400.jpg",
-		"IMG_0402.jpg",
-		"IMG_0405.jpg",
-		"IMG_0406.jpg",
-		"IMG_0417.jpg",
-		"IMG_0419.jpg",
-		"IMG_0421.jpg",
-		"IMG_0422.jpg",
-		"IMG_0423.jpg",
-		"IMG_0425.jpg",
-		"IMG_0437.jpg"
+		"2.jpg", "2.jpg",
+		"3.JPG", "4.JPG", "5.JPG", "6.JPG", "6.5.JPG", "6.6.jpg", "6.7.jpg", "7.JPG", "8.5.jpg", "8.MP4", "9.JPG", "10.JPG", "11.JPG", "12.JPG", "13.jpg", "14.JPG", "15.jpg", "16.JPG", "17.jpg", "18.jpg", "98.mov", "99.JPG",
+		"0ce83324-cbd6-4cb7-8f39-474124b79377.JPG", "5fca090e-a74a-4d1b-bee9-121fb93d9425.JPG", "ddf9c430-0d1f-4c47-8f90-d25be77d9169.JPG", "e5c2854c-7bb0-4293-81df-30359a21b8e0.JPG",
+		"IMG_0375.jpg", "IMG_0378.jpg", "IMG_0379.jpg", "IMG_0380.jpg", "IMG_0384.jpg", "IMG_0387.jpg", "IMG_0392.jpg", "IMG_0394.jpg", "IMG_0398.jpg", "IMG_0400.jpg", "IMG_0402.jpg", "IMG_0405.jpg", "IMG_0406.jpg", "IMG_0417.jpg", "IMG_0419.jpg", "IMG_0421.jpg", "IMG_0422.jpg", "IMG_0425.jpg", "IMG_0437.jpg"
 	];
 
 	let current = 0;
+	let fullscreenOpen = false;
+	let fullscreenIndex = 0;
+
 	function prev() {
 		current = (current - 1 + mediaFiles.length) % mediaFiles.length;
 	}
@@ -42,32 +20,89 @@
 		current = (current + 1) % mediaFiles.length;
 	}
 
-	// keyboard navigation
-	if (typeof window !== 'undefined') {
-		window.addEventListener('keydown', (e) => {
+	function openFullscreen(idx: number) {
+		fullscreenIndex = idx;
+		fullscreenOpen = true;
+		setTimeout(() => {
+			if (typeof window !== 'undefined') {
+				const modal = document.querySelector('.fullscreen-modal') as HTMLElement;
+				if (modal) modal.focus();
+			}
+		}, 0);
+	}
+	function closeFullscreen() {
+		fullscreenOpen = false;
+		current = fullscreenIndex;
+	}
+	function fsPrev(e?: Event) {
+		fullscreenIndex = (fullscreenIndex - 1 + mediaFiles.length) % mediaFiles.length;
+		if (e) e.stopPropagation();
+	}
+	function fsNext(e?: Event) {
+		fullscreenIndex = (fullscreenIndex + 1) % mediaFiles.length;
+		if (e) e.stopPropagation();
+	}
+
+	function handleKey(e: KeyboardEvent) {
+		if (fullscreenOpen) {
+			if (e.key === 'Escape') closeFullscreen();
+			if (e.key === 'ArrowLeft') fsPrev();
+			if (e.key === 'ArrowRight') fsNext();
+		} else {
 			if (e.key === 'ArrowLeft') prev();
 			if (e.key === 'ArrowRight') next();
-		});
+		}
 	}
+
+	onMount(() => {
+		if (typeof window !== 'undefined') {
+			window.addEventListener('keydown', handleKey);
+		}
+	});
+	onDestroy(() => {
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('keydown', handleKey);
+		}
+	});
 </script>
 
 <main class="carousel">
 	<div class="media-container">
 		{#key mediaFiles[current]}
-			{#if mediaFiles[current].endsWith('.mov')}
-				<video src={'/' + mediaFiles[current]} controls class="media media-enter" />
+			{#if mediaFiles[current].endsWith('.mov') || mediaFiles[current].endsWith('.MP4')}
+				<video src={'/' + mediaFiles[current]} controls class="media media-enter">
+					<track kind="captions" label="No captions" />
+				</video>
 			{:else}
 				<img src={'/' + mediaFiles[current]} alt="media" class="media media-enter" />
 			{/if}
 		{/key}
+		<button class="fullscreen-btn" aria-label="Open fullscreen" on:click={() => openFullscreen(current)} tabindex="0">⛶</button>
 	</div>
 	<div class="nav-buttons">
 		<button class="btn btn-left" on:click={prev} aria-label="Previous">◀</button>
 		<div class="counter">{current + 1} / {mediaFiles.length}</div>
 		<button class="btn btn-right" on:click={next} aria-label="Next">▶</button>
 	</div>
+
+	{#if fullscreenOpen}
+	<div class="fullscreen-modal" tabindex="-1" aria-modal="true" role="dialog" on:click|self={closeFullscreen} on:keydown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { closeFullscreen(); } }}>
+			<button class="close-btn" aria-label="Close fullscreen" on:click={closeFullscreen}>✕</button>
+			<button class="fs-nav-btn fs-prev" aria-label="Previous" on:click|stopPropagation={fsPrev}>◀</button>
+			<div class="fs-media-wrapper">
+				{#if mediaFiles[fullscreenIndex].endsWith('.mov') || mediaFiles[fullscreenIndex].endsWith('.MP4')}
+					<video src={'/' + mediaFiles[fullscreenIndex]} controls autoplay class="fs-media">
+						<track kind="captions" label="No captions" />
+					</video>
+				{:else}
+					<img src={'/' + mediaFiles[fullscreenIndex]} alt="media fullscreen" class="fs-media" />
+				{/if}
+			</div>
+			<button class="fs-nav-btn fs-next" aria-label="Next" on:click|stopPropagation={fsNext}>▶</button>
+		</div>
+	{/if}
 </main>
-<footer class="trademark">By Stefanos Siathas</footer>
+<footer class="trademark">by Stefanos Siathas™</footer>
 
 <style>
 	:global(body) {
@@ -100,14 +135,19 @@ main.carousel {
 	padding: 0.5rem;
 	border: 2px solid rgba(255,255,255,0.35);
 	backdrop-filter: blur(4px);
+	overflow: hidden;
 }
 .media {
 	max-width: 100%;
-	max-height: 76vh;
+	max-height: 100%;
+	width: auto;
+	height: auto;
 	border-radius: 0.9rem;
 	object-fit: contain;
 	box-shadow: 0 6px 20px rgba(0,0,0,0.12);
 	transition: transform 300ms cubic-bezier(.2,.9,.3,1), opacity 300ms ease;
+	display: block;
+	margin: auto;
 }
 .media-enter {
 	animation: fadeInUp 360ms ease both;
@@ -175,5 +215,100 @@ main.carousel {
 	.btn { width: 44px; height: 44px; }
 	.counter { padding: 0.25rem 0.5rem; font-size: 0.95rem; }
 	.trademark { font-size: 0.95rem; }
+}
+/* Fullscreen modal styles */
+.fullscreen-btn {
+	position: absolute;
+	top: 1.1rem;
+	right: 1.1rem;
+	background: rgba(255,255,255,0.85);
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	font-size: 1.3rem;
+	color: #333;
+	cursor: pointer;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+	z-index: 2;
+	transition: background 0.2s;
+}
+.fullscreen-btn:focus {
+	outline: 2px solid #4ea8de;
+}
+.media-container { position: relative; }
+.fullscreen-modal {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.92);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	outline: none;
+	animation: fadeInUp 320ms cubic-bezier(.2,.9,.3,1);
+}
+.fs-media-wrapper {
+	max-width: 98vw;
+	max-height: 92vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.fs-media {
+	max-width: 98vw;
+	max-height: 88vh;
+	border-radius: 1.1rem;
+	box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+	background: #fff;
+	object-fit: contain;
+}
+.close-btn {
+	position: absolute;
+	top: 1.2rem;
+	right: 1.2rem;
+	background: rgba(255,255,255,0.85);
+	border: none;
+	border-radius: 50%;
+	width: 44px;
+	height: 44px;
+	font-size: 1.4rem;
+	color: #333;
+	cursor: pointer;
+	z-index: 2;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+	transition: background 0.2s;
+}
+.close-btn:focus {
+	outline: 2px solid #ff758c;
+}
+.fs-nav-btn {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	background: rgba(255,255,255,0.85);
+	border: none;
+	border-radius: 50%;
+	width: 48px;
+	height: 48px;
+	font-size: 1.5rem;
+	color: #333;
+	cursor: pointer;
+	z-index: 2;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+	transition: background 0.2s;
+}
+.fs-prev { left: 2vw; }
+.fs-next { right: 2vw; }
+.fs-nav-btn:focus {
+	outline: 2px solid #4ea8de;
+}
+@media (max-width: 600px) {
+	.fullscreen-btn, .close-btn, .fs-nav-btn {
+		width: 38px; height: 38px; font-size: 1.1rem;
+	}
+	.fs-media { border-radius: 0.7rem; }
+	.fs-prev { left: 1vw; }
+	.fs-next { right: 1vw; }
 }
 </style>
